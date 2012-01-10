@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 require 'open-uri'
+require 'mime/types'
 
 module CarrierWave
   module Uploader
@@ -12,12 +13,15 @@ module CarrierWave
       include CarrierWave::Uploader::Cache
 
       class RemoteFile
-        def initialize(uri)
+        def initialize(uri, config)
           @uri = uri
+          @config = config
         end
 
         def original_filename
-          File.basename(file.base_uri.path)
+          raw = File.basename(file.base_uri.path)
+          raw += get_extension_by_mime_type if @config.set_file_extension_by_mime_type
+          raw
         end
 
         def respond_to?(*args)
@@ -28,6 +32,24 @@ module CarrierWave
           @uri.scheme =~ /^https?$/
         end
 
+        def get_extension_by_mime_type
+          ext  = File.extname(file.base_uri.path).gsub(/^\./, "")
+          mime = file.content_type
+
+          exts  = MIME::Types[mime] || []
+          found = false
+          exts.each do |mime_type|
+            if (mime_type && mime_type.extensions.include?(ext.downcase))
+              found = true
+            end
+          end
+
+          if !found && exts && exts[0] && exts[0].extensions
+            "." + exts[0].extensions[0]
+          else
+            ""
+          end
+        end
       private
 
         def file
@@ -53,7 +75,7 @@ module CarrierWave
       def download!(uri)
         unless uri.blank?
           processed_uri = process_uri(uri)
-          file = RemoteFile.new(processed_uri)
+          file = RemoteFile.new(processed_uri, self)
           raise CarrierWave::DownloadError, "trying to download a file which is not served over HTTP" unless file.http?
           cache!(file)
         end
