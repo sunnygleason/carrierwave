@@ -1,7 +1,6 @@
 # encoding: utf-8
 
 require 'open-uri'
-require 'mime/types'
 
 module CarrierWave
   module Uploader
@@ -33,6 +32,8 @@ module CarrierWave
         end
 
         def get_extension_by_mime_type
+          require 'mime/types'
+
           ext  = File.extname(file.base_uri.path).gsub(/^\./, "")
           mime = file.content_type
 
