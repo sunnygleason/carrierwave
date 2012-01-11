@@ -22,6 +22,9 @@ describe CarrierWave::Uploader::Download do
       sham_rack_app.register_resource('/test.jpg', File.read(file_path('test.jpg')), 'image/jpg')
       sham_rack_app.register_resource('/test%20with%20spaces/test.jpg', File.read(file_path('test.jpg')), 'image/jpg')
 
+      img_app = ShamRack.at("www.fake.com").stub
+      img_app.register_resource('/test.html', File.read(file_path('test.jpg')), 'image/jpeg')
+
       ShamRack.at("www.redirect.com") do |env|
         [301, {'Content-Type'=>'text/html', 'Location'=>"http://www.example.com/test.jpg"}, ['Redirecting']]
       end
@@ -55,6 +58,13 @@ describe CarrierWave::Uploader::Download do
       @uploader.download!('http://www.example.com/test.jpg')
       @uploader.file.path.should == public_path('uploads/tmp/20071201-1234-345-2255/test.jpg')
       @uploader.file.exists?.should be_true
+    end
+
+    describe '#download! sanitizes image file extensions' do
+      it "should replace file extension based on mime type" do
+        @uploader.download!('http://www.fake.com/test.html')
+        @uploader.filename.should == 'test.html.jpeg'
+      end
     end
 
     it "should set the url" do
